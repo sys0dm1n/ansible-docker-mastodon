@@ -1,0 +1,101 @@
+---
+- name: clone mastodon repository
+  git:
+    repo: https://github.com/tootsuite/mastodon.git
+    dest: /home/mastodon
+
+- name: adding .env.production file
+  template:
+    src: .env.production.sample
+    dest: /home/mastodon/.env.production
+
+
+- name: docker-compose build services # docker-compose build #
+  docker_service:
+    build: yes
+    definition:
+      project_src: /home/mastodon/
+
+
+
+- name: Create and start containers # docker-compose up -d #
+  docker_service:
+    state: present
+    definition:
+      project_src: /home/mastodon/
+
+- name:
+  command: docker-compose run --rm web rails db:migrate
+
+- name:
+  command: docker-compose run --rm web rails assets:precompile
+
+- name: Install packages
+  apt: name={{ item }} state=latest update_cache=yes cache_valid_time=3600
+  with_items:
+    - nginx
+    - letsencrypt
+
+- name: copy mastodon vhost file to nginx sites-available
+  template:
+    src: nginx-vhost-mastodon
+    dest: /etc/nginx/sites-available/mastodon
+
+- name: adding .well-known location to nginx default vhost
+  blockinfile:
+    path: /etc/nginx/sites-available/default
+    backup: yes
+    block: |
+      location ~ /.well-known {
+          allow all;
+      }
+    notify: restart nginx
+
+- name: generate letsencrypt certiticate
+  shell: letsencrypt certonly -n --agree-tos --webroot --webroot-path=/var/www/html -m {{ le_email }} -d {{ le_domain }}
+  args:
+    creates: /etc/letsencrypt/live/{{ le_domain}}
+
+- name: Generate dhparams
+  shell: openssl dhparam -out /etc/nginx/dhparams.pem 2048
+  args:
+    creates: /etc/nginx/dhparams.pem
+
+
+- name: create snippets directory
+  file:
+    state: directory
+    path: /etc/nginx/snippets/
+
+- name: copy ssl_certificate conf file to /etc/nginx/snippets
+  templates:
+    src: ssl-example.com.conf
+    dest: /etc/nginx/snippets/ssl-{{ le_domain}}.conf
+
+- name: copy ssl_certificate conf file to /etc/nginx/snippets
+  copy:
+    src: ssl-params.conf
+    dest: /etc/nginx/snippets/ssl-params.conf
+
+- name: create cron directory
+  file:
+    state: directory
+    path: /home/masto_cron
+
+- name: Copy cron script to keep your mastodon instance nice and clean
+   copy:
+     src: masto_cron.sh
+     dest: /home/masto_cron/
+
+- name: cron script to keep your mastodon instance nice and clean
+  cron:
+    name: mastodon_clean
+    job: /home/masto_cron/masto_cron.sh
+    minute: "0"
+    hour: "1"
+
+- name: Add letsencrypt cronjob for cert renewal
+  cron:
+    name: letsencrypt_renewal
+    special_time: weekly
+    job: /usr/bin/letsencrypt renew >> /var/log/le-renew.log && /bin/systemctl reload nginx
