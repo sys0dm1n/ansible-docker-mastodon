@@ -29,6 +29,6 @@ The above commands restart the docker container for you. This should really only
 
 - Ref.: [Mastodon installation](https://fediwiki.info/mastodon_install.html)
 - Ref.: [Mastodon Github Repository](https://github.com/tootsuite/mastodon)
-- Ref.: [ANSIBLE Modules] (http://docs.ansible.com/ansible/list_of_all_modules.html)
+- Ref.: [ANSIBLE Modules](http://docs.ansible.com/ansible/list_of_all_modules.html)
 - Ref.: [how to secure Nginx with let's encrypt on Ubuntu 16.04](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-16-04)
 - Ref.: [ANSIBLE let's encrypt Nginx setup](https://gist.github.com/mattiaslundberg/ba214a35060d3c8603e9b1ec8627d349)
